@@ -1,5 +1,6 @@
 package com.example.composeclub
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -7,6 +8,8 @@ import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,31 +22,35 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.composeclub.ui.theme.pill
 import com.example.composeclub.ui.theme.plpBasic
 import java.util.*
 
-data class PricingModel(
+sealed class PricingModel
+data class ButtonModel(
     val priceYouPay: String,
     val wouldHavePaid: String? = null,
     val savings: String? = null,
-)
+) : PricingModel()
 
-class PricingModelProvider : PreviewParameterProvider<PricingModel> {
-    override val values: Sequence<PricingModel>
+object Offline : PricingModel()
+
+class PricingModelProvider : PreviewParameterProvider<ButtonModel> {
+    override val values: Sequence<ButtonModel>
         get() = sequenceOf(
-            PricingModel(
+            ButtonModel(
                 priceYouPay = "$4.99/month",
             ),
-            PricingModel(
+            ButtonModel(
                 priceYouPay = "$4.99/month",
                 savings = "Save 16%"
             ),
-            PricingModel(
+            ButtonModel(
                 priceYouPay = "$4.99/month",
                 wouldHavePaid = "$16.99"
             ),
-            PricingModel(
+            ButtonModel(
                 priceYouPay = "$4.99/month",
                 wouldHavePaid = "$16.99",
                 savings = "Save 16%"
@@ -51,10 +58,26 @@ class PricingModelProvider : PreviewParameterProvider<PricingModel> {
         )
 }
 
+@Composable
+fun PlpScreen() {
+    val viewModel = viewModel(modelClass = MainViewModel::class.java)
+    val pricingModel = viewModel.queryPricingModel.collectAsState()
+    Crossfade(targetState = pricingModel.value) {
+        when (val value = pricingModel.value) {
+            Offline -> {
+                Text(text = "You are offline ya scrub")
+            }
+            is ButtonModel -> {
+                PlpButton(buttonModel = value)
+            }
+        }
+    }
+}
+
 @Preview
 @Composable
 fun PlpButton(
-    @PreviewParameter(PricingModelProvider::class) pricingModel: PricingModel
+    @PreviewParameter(PricingModelProvider::class) buttonModel: ButtonModel
 ) {
     Box() {
         Button(
@@ -62,13 +85,13 @@ fun PlpButton(
                 backgroundColor = plpBasic
             ),
             modifier = Modifier
-                .preferredWidth(width = 350.dp)
+                .width(width = 350.dp)
                 .padding(top = 10.dp),
             onClick = { }
         ) {
             Text(text = buildAnnotatedString {
                 append(
-                    pricingModel.wouldHavePaid,
+                    buttonModel.wouldHavePaid,
                     TextStyle(
                         color = Color.LightGray,
                         textDecoration = TextDecoration.LineThrough,
@@ -76,12 +99,12 @@ fun PlpButton(
                     )
                 )
                 append(
-                    pricingModel.priceYouPay,
+                    buttonModel.priceYouPay,
                     TextStyle(color = Color.White, fontWeight = FontWeight.Bold)
                 )
             })
         }
-        pricingModel.savings?.let {
+        buttonModel.savings?.let {
             SavingsPill(
                 it,
                 Modifier
@@ -102,7 +125,7 @@ fun SavingsPill(
         fontWeight = FontWeight.Bold,
         color = plpBasic,
         modifier = modifier
-            .preferredHeight(24.dp)
+            .height(24.dp)
             .border(
                 width = 2.dp,
                 color = plpBasic,
